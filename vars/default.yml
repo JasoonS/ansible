@@ -1,0 +1,25 @@
+---
+copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+sys_packages:
+  [
+    "curl",
+    "vim",
+    "git",
+    "apt-transport-https",
+    "ca-certificates",
+    "software-properties-common",
+    "python3-pip",
+    "virtualenv",
+    "python3-setuptools",
+    "tmux",
+    "mosh",
+  ]
+
+fnm_nodejs_versions:
+  - "latest-v12.x"
+
+fnm_npm_global_packages:
+  - name: ganache-cli
+  - name: truffle
+  - name: "@graphprotocol/graph-cli"
+  - name: "@openzeppelin/cli"

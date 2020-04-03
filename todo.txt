@@ -1,0 +1,4 @@
+Load my dotfile: https://github.com/JasoonS/dotfiles
+Get zsh. (prezto)
+Tmux -
+  get copy working from server (eg. https://www.rushiagr.com/blog/2016/06/16/everything-you-need-to-know-about-tmux-copy-pasting-ubuntu/)

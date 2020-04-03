@@ -1,0 +1,63 @@
+---
+- hosts: all
+
+  become: true
+  vars_files:
+    - vars/default.yml
+
+  tasks:
+    - name: Install Prerequisites
+      apt: name=aptitude update_cache=yes state=latest force_apt_get=yes
+
+    # install yarn, from here: https://github.com/angristan/ansible-yarn/blob/master/tasks/main.yml
+    - name: Ensure apt-transport-https is installed
+      apt:
+        name: apt-transport-https
+
+    - name: Add Yarn apt key
+      apt_key:
+        url: https://dl.yarnpkg.com/debian/pubkey.gpg
+
+    - name: Add Yarn repository
+      apt_repository:
+        repo: "deb https://dl.yarnpkg.com/debian/ stable main"
+        filename: yarn
+
+    - name: Install Yarn
+      apt:
+        name: yarn
+
+    # Install Packages
+    - name: Update apt
+      apt: update_cache=yes
+
+    - name: Install required system packages
+      apt: name={{ sys_packages }} state=latest
+
+    # Setup FNM and node.
+    - name: Setup Node and global packages
+      include_role:
+        name: hurricanehrndz.fastnodemanager
+
+    # Setup and install docker:
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu bionic stable
+        state: present
+
+    - name: Update apt and install docker-ce
+      apt: update_cache=yes name=docker-ce state=latest
+
+    # Create an ssh key for GH (or anything else)
+    - name: Create new ssh key
+      command: ssh-keygen -q -t rsa -f /etc/ssh/ssh_rsa -C "" -N ""
+      args:
+        creates: /etc/ssh/ssh_host_rsa_key
+    # Adding it to GH could be automated, but that requires keys and other hastles.
+    #     https://docs.ansible.com/ansible/latest/modules/github_key_module.html
+    # So rather follow the instructions found here: https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent
