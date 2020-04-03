@@ -13,6 +13,7 @@ sys_packages:
     "python3-setuptools",
     "tmux",
     "mosh",
+    "xclip",
   ]
 
 fnm_nodejs_versions:
