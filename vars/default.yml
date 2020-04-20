@@ -14,6 +14,7 @@ sys_packages:
     "tmux",
     "mosh",
     "xclip",
+    "zsh",
   ]
 
 fnm_nodejs_versions:
