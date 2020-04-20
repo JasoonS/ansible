@@ -93,11 +93,12 @@
         dest: "/home/{{ansible_user}}/.dotfiles/"
         version: b6838e3
 
+    - name: Set default shell to zsh
+      shell: |
+        echo "export SHELL=bin/zsh
+        exec /bin/zsh -l" >> .profile
+
     - name: Setup dotfiles
       shell:
         cmd: make all
         chdir: "/home/{{ansible_user}}/.dotfiles/"
-    ## This doesn't seem to work... but it wolud be nice if it did.
-    # - name: Set default shell to zsh
-    #   shell:
-    #     cmd: chsh -s $(which zsh)
