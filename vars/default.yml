@@ -26,3 +26,5 @@ fnm_npm_global_packages:
   - name: "@graphprotocol/graph-cli"
   - name: "@openzeppelin/cli"
   - name: "diff-so-fancy"
+
+ssh_key_filename: id_rsa

@@ -1,41 +1,57 @@
 ---
 - hosts: all
 
-  become: true
+  # become: true
   vars_files:
     - vars/default.yml
 
   tasks:
     - name: Install Prerequisites
+      become: true
+      become_user: root
       apt: name=aptitude update_cache=yes state=latest force_apt_get=yes
 
     # install yarn, from here: https://github.com/angristan/ansible-yarn/blob/master/tasks/main.yml
     - name: Ensure apt-transport-https is installed
+      become: true
+      become_user: root
       apt:
         name: apt-transport-https
 
     - name: Add Yarn apt key
+      become: true
+      become_user: root
       apt_key:
         url: https://dl.yarnpkg.com/debian/pubkey.gpg
 
     - name: Add Yarn repository
+      become: true
+      become_user: root
       apt_repository:
         repo: "deb https://dl.yarnpkg.com/debian/ stable main"
         filename: yarn
 
     - name: Install Yarn
+      become: true
+      become_user: root
       apt:
         name: yarn
 
     # Install Packages
     - name: Update apt
+      become: true
+      become_user: root
       apt: update_cache=yes
 
     - name: Install required system packages
+      become: true
+      become_user: root
       apt: name={{ sys_packages }} state=latest
 
     # Setup FNM and node.
     - name: Setup Node and global packages
+      become: true
+      become_user: root
       include_role:
         name: hurricanehrndz.fastnodemanager
 
@@ -54,10 +70,34 @@
       apt: update_cache=yes name=docker-ce state=latest
 
     # Create an ssh key for GH (or anything else)
-    - name: Create new ssh key
-      command: ssh-keygen -q -t rsa -f ~/.ssh/id_rsa -C "" -N ""
-      args:
-        creates: ~/.ssh/id_rsa
-        # Adding it to GH could be automated, but that requires keys and other hastles.
-        #     https://docs.ansible.com/ansible/latest/modules/github_key_module.html
-        # So rather follow the instructions found here: https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent
+
+    - name: generate SSH key "{{ssh_key_filename}}"
+      become: true
+      become_user: root
+      user:
+        name: "{{ansible_user}}"
+        generate_ssh_key: yes
+        ssh_key_type: rsa
+        ssh_key_bits: 4096
+        ssh_key_file: .ssh/{{ssh_key_filename}}
+        # ssh_key_passphrase: "{{ssh_passphrase}}"
+        force: no
+    # Adding it to GH could be automated, but that requires keys and other hastles.
+    #     https://docs.ansible.com/ansible/latest/modules/github_key_module.html
+    # So rather follow the instructions found here: https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent
+
+    - name: "load the dotfiles"
+      git:
+        repo: "https://github.com/JasoonS/dotfiles.git"
+        # repo: "git@github.com:JasoonS/dotfiles.git"
+        dest: "/home/{{ansible_user}}/.dotfiles/"
+        version: b6838e3
+
+    - name: Setup dotfiles
+      shell:
+        cmd: make all
+        chdir: "/home/{{ansible_user}}/.dotfiles/"
+    ## This doesn't seem to work... but it wolud be nice if it did.
+    # - name: Set default shell to zsh
+    #   shell:
+    #     cmd: chsh -s $(which zsh)
