@@ -91,12 +91,14 @@
         repo: "https://github.com/JasoonS/dotfiles.git"
         # repo: "git@github.com:JasoonS/dotfiles.git"
         dest: "/home/{{ansible_user}}/.dotfiles/"
-        version: b6838e3
+        version: 4290ddc
 
     - name: Set default shell to zsh
       shell: |
-        echo "export SHELL=bin/zsh
-        exec /bin/zsh -l" >> .profile
+        echo "export SHELL=$(which zsh)
+        exec $(which zsh) -l" >> .profile
+        # I'm not sure if this command is also necessary...added for good measure
+        chsh -s $(which zsh)
 
     - name: Setup dotfiles
       shell:

@@ -15,6 +15,7 @@ sys_packages:
     "mosh",
     "xclip",
     "zsh",
+    "hub",
   ]
 
 fnm_nodejs_versions:
