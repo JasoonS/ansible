@@ -1,10 +1,8 @@
 ---
 - hosts: all
 
-  # become: true
   vars_files:
     - vars/default.yml
-
   tasks:
     - name: Install Prerequisites
       become: true
@@ -31,6 +29,13 @@
         repo: "deb https://dl.yarnpkg.com/debian/ stable main"
         filename: yarn
 
+    # Used for letsencrypt certificate setup (+autorenew). See here: https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04
+    - name: Add certbot ppa
+      become: true
+      become_user: root
+      apt_repository:
+        repo: "ppa:certbot/certbot"
+
     - name: Install Yarn
       become: true
       become_user: root
@@ -50,27 +55,35 @@
 
     # Setup FNM and node.
     - name: Setup Node and global packages
-      become: true
-      become_user: root
       include_role:
         name: hurricanehrndz.fastnodemanager
 
+    - name: Install snaps with option --classic
+      become: true
+      become_user: root
+      snap: name={{ classic_snaps }} state=yes
+
     # Setup and install docker:
     - name: Add Docker GPG apt Key
+      become: true
+      become_user: root
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
 
     - name: Add Docker Repository
+      become: true
+      become_user: root
       apt_repository:
         repo: deb https://download.docker.com/linux/ubuntu bionic stable
         state: present
 
     - name: Update apt and install docker-ce
+      become: true
+      become_user: root
       apt: update_cache=yes name=docker-ce state=latest
 
-    # Create an ssh key for GH (or anything else)
-
+    # Create an ssh key for GH (or anything else) ## currently you need to manually add this to github unfortunately.
     - name: generate SSH key "{{ssh_key_filename}}"
       become: true
       become_user: root
@@ -82,25 +95,46 @@
         ssh_key_file: .ssh/{{ssh_key_filename}}
         # ssh_key_passphrase: "{{ssh_passphrase}}"
         force: no
-    # Adding it to GH could be automated, but that requires keys and other hastles.
+    # Adding these ssh keys to GH could be automated, but that requires keys and other hastles.
     #     https://docs.ansible.com/ansible/latest/modules/github_key_module.html
     # So rather follow the instructions found here: https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent
+
+    - name: install fd (faster alternative to find)
+      include_role:
+        name: gantsign.fd
 
     - name: "load the dotfiles"
       git:
         repo: "https://github.com/JasoonS/dotfiles.git"
         # repo: "git@github.com:JasoonS/dotfiles.git"
         dest: "/home/{{ansible_user}}/.dotfiles/"
-        version: 4290ddc
+        version: "{{dotfiles_commit}}"
 
+    # I'm not sure if `chsh -s $(which zsh)` is necessary...added for good measure
+    # chsh -s $(which zsh)
     - name: Set default shell to zsh
-      shell: |
-        echo "export SHELL=$(which zsh)
-        exec $(which zsh) -l" >> .profile
-        # I'm not sure if this command is also necessary...added for good measure
-        chsh -s $(which zsh)
+      blockinfile:
+        path: "~/.profile"
+        # regexp: "SHELL="
+        block: |
+          export SHELL=$(which zsh)
+          exec $(which zsh) -l
 
     - name: Setup dotfiles
       shell:
         cmd: make all
         chdir: "/home/{{ansible_user}}/.dotfiles/"
+    ##USE SNAP INSTEAD...
+    # - name: setup golang
+    #   include_role:
+    #     name: fubarhouse.golang
+#
+
+# # Put things here that need to become root ie it has `become: true`
+# - hosts: all
+
+#   become: true
+#   vars_files:
+#     - vars/default.yml
+
+# tasks:

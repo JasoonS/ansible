@@ -1,7 +1,6 @@
 ---
 copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
-sys_packages:
-  [
+sys_packages: [
     "curl",
     "vim",
     "git",
@@ -15,7 +14,10 @@ sys_packages:
     "mosh",
     "xclip",
     "zsh",
-    "hub",
+    # "hub", #It is probably better to use the snap for this in the future
+    # "fd-find",
+    "nginx",
+    "python-certbot-nginx",
   ]
 
 fnm_nodejs_versions:
@@ -29,3 +31,7 @@ fnm_npm_global_packages:
   - name: "diff-so-fancy"
 
 ssh_key_filename: id_rsa
+
+dotfiles_commit: 5203a96
+
+classic_snaps: [hub, go]
