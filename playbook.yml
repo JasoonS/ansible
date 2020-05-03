@@ -61,7 +61,7 @@
     - name: Install snaps with option --classic
       become: true
       become_user: root
-      snap: name={{ classic_snaps }} state=yes
+      snap: name={{ classic_snaps }} classic=yes
 
     # Setup and install docker:
     - name: Add Docker GPG apt Key
