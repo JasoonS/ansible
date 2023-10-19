@@ -1,0 +1,27 @@
+- name: Generate SSH Key
+  hosts: all
+  become: yes
+  become_user: "{{ username }}"
+  tasks:
+    - name: Generate SSH Key for each node
+      openssh_keypair:
+        type: ed25519
+        comment: "{{ username }}@envio.dev"
+        path: "/home/{{ username }}/.ssh/id_ed25519"
+
+    - name: Fetch public keys from all hosts
+      fetch:
+        src: "/home/{{ username }}/.ssh/id_ed25519.pub"
+        dest: "tmp/{{ inventory_hostname }}.pub"
+        flat: true
+
+- name: Distribute SSH Key
+  hosts: all
+  become: true
+  become_user: "{{ username }}"
+  tasks:
+    - name: Add keys to authorized keys
+      authorized_key:
+        user: "{{ username }}"
+        key: "{{ lookup('file', 'tmp/' + item + '.pub', errors='warn') }}"
+      loop: "{{ groups['all'] }}"

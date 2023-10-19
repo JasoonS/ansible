@@ -1,37 +1,26 @@
 ---
-copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
-sys_packages: [
-    "curl",
-    "vim",
-    "git",
-    "apt-transport-https",
-    "ca-certificates",
-    "software-properties-common",
-    "python3-pip",
-    "virtualenv",
-    "python3-setuptools",
-    "tmux",
-    "mosh",
-    "xclip",
-    "zsh",
-    # "hub", #It is probably better to use the snap for this in the future
-    # "fd-find",
-    "nginx",
-    "python-certbot-nginx",
-  ]
-
-fnm_nodejs_versions:
-  - "latest-v12.x"
-
-fnm_npm_global_packages:
-  - name: ganache-cli
-  - name: truffle
-  - name: "@graphprotocol/graph-cli"
-  - name: "@openzeppelin/cli"
-  - name: "diff-so-fancy"
-
-ssh_key_filename: id_rsa
-
-dotfiles_commit: 5203a96
-
-classic_snaps: [hub, go]
+vswitch:
+  ips:
+    - '192.168.100.1' # kube1
+    - '192.168.100.2' # kube2
+    - '192.168.100.3' # hyper1
+    - '192.168.100.4' # hyper2
+  protocols_and_ports:
+    - proto: 'tcp'
+      port: '2379'
+    - proto: 'tcp'
+      port: '443'
+    - proto: 'tcp'
+      port: '2380'
+    - proto: 'tcp'
+      port: '6443'
+    - proto: 'udp'
+      port: '8472'
+    - proto: 'tcp'
+      port: '9099'
+    - proto: 'tcp'
+      port: '10250'
+    - proto: 'tcp'
+      port: '10254'
+  vlan_id: 4000
+  vlan_broadcast: 192.168.100.255

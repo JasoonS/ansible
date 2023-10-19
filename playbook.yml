@@ -1,140 +1,121 @@
+
 ---
 - hosts: all
 
   vars_files:
     - vars/default.yml
+
+  vars_prompt:
+    - name: "user_password"
+      prompt: "Enter password for newly created user (leave blank if not creating new user)"
+      private: true
+      encrypt: "sha512_crypt"
+
   tasks:
-    - name: Install Prerequisites
-      become: true
-      become_user: root
-      apt: name=aptitude update_cache=yes state=latest force_apt_get=yes
-
-    # install yarn, from here: https://github.com/angristan/ansible-yarn/blob/master/tasks/main.yml
-    - name: Ensure apt-transport-https is installed
-      become: true
-      become_user: root
-      apt:
-        name: apt-transport-https
-
-    - name: Add Yarn apt key
-      become: true
-      become_user: root
-      apt_key:
-        url: https://dl.yarnpkg.com/debian/pubkey.gpg
-
-    - name: Add Yarn repository
-      become: true
-      become_user: root
-      apt_repository:
-        repo: "deb https://dl.yarnpkg.com/debian/ stable main"
-        filename: yarn
-
-    # Used for letsencrypt certificate setup (+autorenew). See here: https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04
-    - name: Add certbot ppa
-      become: true
-      become_user: root
-      apt_repository:
-        repo: "ppa:certbot/certbot"
-
-    - name: Install Yarn
-      become: true
-      become_user: root
-      apt:
-        name: yarn
-
-    # Install Packages
-    - name: Update apt
-      become: true
-      become_user: root
-      apt: update_cache=yes
-
     - name: Install required system packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+          - virtualenv
+          - python3-setuptools
+        state: latest
+        update_cache: true
+
+    - name: Create Users
       become: true
-      become_user: root
-      apt: name={{ sys_packages }} state=latest
+      user:
+        name: "{{ username }}"
+        password: "{{ user_password }}"
+        groups: sudo
+        append: yes
+        shell: /usr/bin/bash
+        update_password: on_create
 
-    # Setup FNM and node.
-    - name: Setup Node and global packages
-      include_role:
-        name: hurricanehrndz.fastnodemanager
-
-    - name: Install snaps with option --classic
+    - name: Add SSH keys to User's Known Hosts
       become: true
-      become_user: root
-      snap: name={{ classic_snaps }} classic=yes
+      authorized_key:
+        user: "{{ username }}"
+        key: "{{ item }}"
+      with_file:
+        - "pub_keys/access_keys"
 
-    # Setup and install docker:
+# SETUP INTERNAL NETWORKING
+    - name: Install UFW
+      become: true
+      apt:
+        name: [ufw, iptables, sudo]
+        state: present
+
+    - name: Allow UFW Rules for Multiple IPs
+      become: true
+      ufw:
+        rule: allow
+        from_ip: "{{ item.0 }}"
+        proto: "{{ item.1.proto }}"
+        to_port: "{{ item.1.port }}"
+      with_nested:
+        - "{{ vswitch.ips }}"  # IPs from vars/default.yaml
+        - "{{ vswitch.protocols_and_ports }}"
+    - name: Allow UFW Rules for General Ports
+      become: true
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+      loop:
+        - 22
+        - 2376
+        - 6443
+
+# SETUP VLAN interface between nodes
+    # DOCS: https://docs.hetzner.com/robot/dedicated-server/network/vswitch/
+    # NOTE: configure your network_interface from values you get from `ifconfig` or the `get_all_available_interfaces.yml` playbook.
+    - name: Create VLAN Interface
+      command:
+        cmd: "sudo ip link add link {{ network_interface }} name {{ network_interface }}.{{ vswitch.vlan_id }} type vlan id {{ vswitch.vlan_id }}"
+
+    - name: Set MTU and Activate Interface
+      command:
+        cmd: "sudo ip link set {{ network_interface }}.{{ vswitch.vlan_id }} mtu 1400"
+    - name: Activate VLAN Interface
+      command:
+        cmd: "sudo ip link set dev {{ network_interface }}.{{ vswitch.vlan_id }} up"
+
+    - name: Assign IP Address to VLAN Interface
+      command:
+        cmd: "sudo ip addr add {{ vlan_ip }}/24 brd {{ vswitch.vlan_broadcast }} dev {{ network_interface }}.{{ vswitch.vlan_id }}"
+
+# SETUP DOCKER
     - name: Add Docker GPG apt Key
-      become: true
-      become_user: root
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
 
     - name: Add Docker Repository
-      become: true
-      become_user: root
       apt_repository:
-        repo: deb https://download.docker.com/linux/ubuntu bionic stable
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
         state: present
 
     - name: Update apt and install docker-ce
-      become: true
-      become_user: root
-      apt: update_cache=yes name=docker-ce state=latest
+      apt:
+        name: docker-ce
+        state: latest
+        update_cache: true
 
-    # Create an ssh key for GH (or anything else) ## currently you need to manually add this to github unfortunately.
-    - name: generate SSH key "{{ssh_key_filename}}"
+# This allows executing docker as the user without sudo. (not clear if this is desirable on prod server?)
+    - name: Ensure docker group exists
       become: true
-      become_user: root
+      group:
+        name: docker
+        state: present
+
+    - name: Add user to docker group
+      become: true
       user:
-        name: "{{ansible_user}}"
-        generate_ssh_key: yes
-        ssh_key_type: rsa
-        ssh_key_bits: 4096
-        ssh_key_file: .ssh/{{ssh_key_filename}}
-        # ssh_key_passphrase: "{{ssh_passphrase}}"
-        force: no
-    # Adding these ssh keys to GH could be automated, but that requires keys and other hastles.
-    #     https://docs.ansible.com/ansible/latest/modules/github_key_module.html
-    # So rather follow the instructions found here: https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent
+        name: "{{ username }}"
+        groups: docker
+        append: yes
 
-    - name: install fd (faster alternative to find)
-      include_role:
-        name: gantsign.fd
-
-    - name: "load the dotfiles"
-      git:
-        repo: "https://github.com/JasoonS/dotfiles.git"
-        # repo: "git@github.com:JasoonS/dotfiles.git"
-        dest: "/home/{{ansible_user}}/.dotfiles/"
-        version: "{{dotfiles_commit}}"
-
-    # I'm not sure if `chsh -s $(which zsh)` is necessary...added for good measure
-    # chsh -s $(which zsh)
-    - name: Set default shell to zsh
-      blockinfile:
-        path: "~/.profile"
-        # regexp: "SHELL="
-        block: |
-          export SHELL=$(which zsh)
-          exec $(which zsh) -l
-
-    - name: Setup dotfiles
-      shell:
-        cmd: make all
-        chdir: "/home/{{ansible_user}}/.dotfiles/"
-    ##USE SNAP INSTEAD...
-    # - name: setup golang
-    #   include_role:
-    #     name: fubarhouse.golang
-#
-
-# # Put things here that need to become root ie it has `become: true`
-# - hosts: all
-
-#   become: true
-#   vars_files:
-#     - vars/default.yml
-
-# tasks:

@@ -1,4 +1,15 @@
-[servers]
-jasoons ansible_host=34.65.171.221
-jonjon ansible_host=34.65.118.47
-prod ansible_host=34.89.190.193
+all:
+  hosts:
+    hypersync1:
+      ansible_host: 162.55.103.165
+      vlan_ip: 192.168.100.3
+      ansible_ssh_user: root
+      username: hyper1
+      network_interface: enp7s0
+    hypersync2:
+      ansible_host: 116.202.192.201
+      vlan_ip: 192.168.100.4
+      ansible_ssh_user: root
+      username: hyper2
+      network_interface: enp7s0
+ 

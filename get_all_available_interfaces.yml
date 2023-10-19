@@ -1,0 +1,9 @@
+---
+- name: Get all network interfaces name
+  hosts: all
+  gather_facts: yes
+
+  tasks:
+  - name: Display all interfaces name
+    debug:
+      var: ansible_facts.interfaces
